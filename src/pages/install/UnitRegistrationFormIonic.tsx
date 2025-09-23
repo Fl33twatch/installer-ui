@@ -1,360 +1,152 @@
+// src/pages/install/UnitRegistrationFormIonic.tsx
 import React, { useState } from "react";
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
-  IonBackButton,
-  IonButton,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonInput,
-  IonTextarea,
-  IonGrid,
-  IonRow,
-  IonCol,
-  IonChip,
-  IonIcon,
-  IonText,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
+  IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonBackButton,
+  IonContent, IonList, IonItem, IonLabel, IonInput, IonTextarea, IonNote,
+  IonGrid, IonRow, IonCol, IonIcon, useIonToast
 } from "@ionic/react";
 import { useHistory, useLocation } from "react-router-dom";
-import { camera, images, trash } from "ionicons/icons";
-import HomeButton from "../../components/HomeButton";
+import { camera, refresh, trash } from "ionicons/icons";
+import { showToast } from "../../utils/toast";
+import { takePhotoAsFile } from "../../utils/camera";
 
-type Photo = {
-  file: File;
-  url: string; // object URL for preview
-};
+type PhotoState = { file: File | null; url: string | null };
 
 const UnitRegistrationFormIonic: React.FC = () => {
   const history = useHistory();
-  const location = useLocation<any>();
-  const job = location.state?.job ?? null;
+  const { state } = useLocation<any>();
+  const jobName = state?.job?.name ?? state?.jobName ?? "Installation Job";
+  const [present] = useIonToast();
 
-  // Core identity
   const [serial, setSerial] = useState("");
   const [vehicle, setVehicle] = useState("");
   const [vin, setVin] = useState("");
-
-  // Comms + identifiers
   const [imei, setImei] = useState("");
   const [phone, setPhone] = useState("");
   const [rego, setRego] = useState("");
-
-  // Status / metrics
-  const [odo, setOdo] = useState<string>("");
-
-  // Notes
+  const [odo, setOdo] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Photos
-  const [photosBefore, setPhotosBefore] = useState<Photo[]>([]);
-  const [photosAfter, setPhotosAfter] = useState<Photo[]>([]);
+  const [imeiPhoto, setImeiPhoto] = useState<PhotoState>({ file: null, url: null });
+  const [odoPhoto, setOdoPhoto] = useState<PhotoState>({ file: null, url: null });
+  const [regoPhoto, setRegoPhoto] = useState<PhotoState>({ file: null, url: null });
 
-  const addPhotos = (listSetter: React.Dispatch<React.SetStateAction<Photo[]>>) => 
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []);
-      if (files.length === 0) return;
-      const mapped = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
-      listSetter((prev) => [...prev, ...mapped]);
-      // clear the input value so the same file can be selected again if needed
-      e.target.value = "";
-    };
-
-  const removePhoto = (index: number, listSetter: React.Dispatch<React.SetStateAction<Photo[]>>) => {
-    listSetter((prev) => {
-      const next = [...prev];
-      // revoke object URL to avoid memory leaks
-      URL.revokeObjectURL(next[index].url);
-      next.splice(index, 1);
-      return next;
-    });
+  const snap = async (setter: React.Dispatch<React.SetStateAction<PhotoState>>, label: string) => {
+    try {
+      const { file, url } = await takePhotoAsFile(label);
+      setter(prev => { if (prev.url) URL.revokeObjectURL(prev.url); return { file, url }; });
+    } catch {}
+  };
+  const clear = (setter: React.Dispatch<React.SetStateAction<PhotoState>>, current: PhotoState) => {
+    if (current.url) URL.revokeObjectURL(current.url);
+    setter({ file: null, url: null });
   };
 
-  const handleTestUnit = () => {
-    // Stub: plug your real diagnostic/test logic here (API/Capacitor BLE/etc.)
-    alert("Running unit tests… (stub)\n• Power: OK\n• GPS: Acquiring\n• Cellular: Connected");
-  };
+  const allValid =
+    serial.trim() && vehicle.trim() && imei.trim() && phone.trim() && rego.trim() && odo.trim() &&
+    imeiPhoto.file && odoPhoto.file && regoPhoto.file;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Basic validation — expand as needed
-    if (!serial || !vehicle || !imei || !phone || !rego) {
-      alert("Please complete Serial, Vehicle, IMEI, Phone/SIM, and Rego.");
+  const submit = async () => {
+    if (!allValid) {
+      await showToast(present, "Fill all fields and capture IMEI, ODO and REGO/VIN photos.", "danger");
       return;
     }
+    const form = new FormData();
+    form.append("serial", serial.trim());
+    form.append("vehicle", vehicle.trim());
+    form.append("vin", vin.trim());
+    form.append("imei", imei.trim());
+    form.append("phone", phone.trim());
+    form.append("rego", rego.trim().toUpperCase());
+    form.append("odo", odo.trim());
+    form.append("notes", notes);
+    if (imeiPhoto.file) form.append("photo_imei", imeiPhoto.file, imeiPhoto.file.name);
+    if (odoPhoto.file) form.append("photo_odo", odoPhoto.file, odoPhoto.file.name);
+    if (regoPhoto.file) form.append("photo_rego", regoPhoto.file, regoPhoto.file.name);
 
-    // Build payload (convert photos to FormData in real integration)
-    const payload = {
-      job,
-      serial,
-      vehicle,
-      vin,
-      imei,
-      phone,
-      rego,
-      odo: odo ? Number(odo) : undefined,
-      notes,
-      photosBeforeCount: photosBefore.length,
-      photosAfterCount: photosAfter.length,
-    };
-
-    // TODO: send to your API (use fetch/axios; use FormData for files)
-    console.log("Create Unit payload:", payload);
-    alert("Unit created (stub). Check console for payload.");
-
-    history.push("/jobs");
+    try {
+      // TODO: real API call
+      await new Promise(r => setTimeout(r, 800));
+      await showToast(present, "Unit created", "success");
+      history.push("/jobs");
+    } catch (e) {
+      await showToast(present, "Failed to create unit", "danger");
+    }
   };
+
+  const PhotoBlock: React.FC<{
+    title: string; hint?: string; state: PhotoState;
+    onTake: () => void; onClear: () => void; required?: boolean;
+  }> = ({ title, hint, state, onTake, onClear, required = true }) => (
+    <IonItem lines="full">
+      <IonLabel position="stacked">
+        {title} {required && <IonNote color="danger">*</IonNote>}
+        {hint && <div style={{ fontSize: 12, opacity: 0.8 }}>{hint}</div>}
+      </IonLabel>
+      <IonGrid className="ion-no-padding" style={{ width: "100%" }}>
+        <IonRow className="ion-align-items-center">
+          <IonCol size="6">
+            {state.url ? (
+              <div style={{ width: "100%", height: 120, borderRadius: 8, overflow: "hidden", background: "#f1f3f5" }}>
+                <img src={state.url} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <IonButton expand="block" onClick={onTake}><IonIcon icon={camera} slot="start" />Take Photo</IonButton>
+            )}
+          </IonCol>
+          <IonCol size="6" className="ion-text-right">
+            <IonButton fill="outline" onClick={onTake}><IonIcon icon={refresh} slot="start" />Retake</IonButton>
+            <IonButton color="danger" fill="clear" onClick={onClear} disabled={!state.file}>
+              <IonIcon icon={trash} slot="icon-only" />
+            </IonButton>
+          </IonCol>
+        </IonRow>
+        {!state.file && required && (
+          <IonRow><IonCol><IonNote color="danger">Required</IonNote></IonCol></IonRow>
+        )}
+      </IonGrid>
+    </IonItem>
+  );
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/install-type" />
-          </IonButtons>
-          <IonTitle>New Install {job ? `– ${job.name ?? job.id}` : ""}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={() => history.push("/jobs")}>Home</IonButton>
-          </IonButtons>
+          <IonButtons slot="start"><IonBackButton defaultHref="/install-type" /></IonButtons>
+          <IonTitle>New Install – {jobName}</IonTitle>
+          <IonButtons slot="end"><IonButton onClick={() => history.push("/jobs")}>Home</IonButton></IonButtons>
         </IonToolbar>
       </IonHeader>
-
       <IonContent className="ion-padding">
-        <form onSubmit={handleSubmit}>
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Unit Details</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonList>
-                <IonItem>
-                  <IonLabel position="stacked">Unit Serial *</IonLabel>
-                  <IonInput
-                    value={serial}
-                    onIonChange={(e) => setSerial(e.detail.value ?? "")}
-                    required
-                  />
-                </IonItem>
+        <IonList>
+          <IonItem><IonLabel position="stacked">Unit Serial <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={serial} onIonChange={e => setSerial(e.detail.value ?? "")} /></IonItem>
+          <IonItem><IonLabel position="stacked">Vehicle / Asset <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={vehicle} onIonChange={e => setVehicle(e.detail.value ?? "")} /></IonItem>
+          <IonItem><IonLabel position="stacked">VIN</IonLabel>
+            <IonInput value={vin} onIonChange={e => setVin(e.detail.value ?? "")} /></IonItem>
+          <IonItem><IonLabel position="stacked">IMEI <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={imei} onIonChange={e => setImei(e.detail.value ?? "")} inputmode="numeric" /></IonItem>
+          <IonItem><IonLabel position="stacked">Phone / SIM <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={phone} onIonChange={e => setPhone(e.detail.value ?? "")} inputmode="tel" /></IonItem>
+          <IonItem><IonLabel position="stacked">Rego <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={rego} onIonChange={e => setRego(e.detail.value ?? "")} /></IonItem>
+          <IonItem><IonLabel position="stacked">Odometer (km) <IonNote color="danger">*</IonNote></IonLabel>
+            <IonInput value={odo} onIonChange={e => setOdo(e.detail.value ?? "")} inputmode="numeric" /></IonItem>
+          <IonItem><IonLabel position="stacked">Installer Notes</IonLabel>
+            <IonTextarea value={notes} onIonChange={e => setNotes(e.detail.value ?? "")} rows={4} /></IonItem>
 
-                <IonItem>
-                  <IonLabel position="stacked">Vehicle / Asset *</IonLabel>
-                  <IonInput
-                    value={vehicle}
-                    onIonChange={(e) => setVehicle(e.detail.value ?? "")}
-                    required
-                  />
-                </IonItem>
+          <PhotoBlock title="Photo: IMEI" hint="Module label showing IMEI"
+            state={imeiPhoto} onTake={() => snap(setImeiPhoto, "imei")} onClear={() => clear(setImeiPhoto, imeiPhoto)} />
+          <PhotoBlock title="Photo: Odometer" hint="Dashboard odometer reading"
+            state={odoPhoto} onTake={() => snap(setOdoPhoto, "odo")} onClear={() => clear(setOdoPhoto, odoPhoto)} />
+          <PhotoBlock title="Photo: Rego / VIN" hint="Number plate, rego sticker, or VIN plate"
+            state={regoPhoto} onTake={() => snap(setRegoPhoto, "rego")} onClear={() => clear(setRegoPhoto, regoPhoto)} />
+        </IonList>
 
-                <IonItem>
-                  <IonLabel position="stacked">VIN</IonLabel>
-                  <IonInput
-                    value={vin}
-                    onIonChange={(e) => setVin(e.detail.value ?? "")}
-                  />
-                </IonItem>
-              </IonList>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Identifiers & Comms</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonList>
-                <IonItem>
-                  <IonLabel position="stacked">IMEI *</IonLabel>
-                  <IonInput
-                    inputmode="numeric"
-                    value={imei}
-                    onIonChange={(e) => setImei(e.detail.value ?? "")}
-                    required
-                  />
-                </IonItem>
-
-                <IonItem>
-                  <IonLabel position="stacked">Phone / SIM *</IonLabel>
-                  <IonInput
-                    inputmode="tel"
-                    value={phone}
-                    onIonChange={(e) => setPhone(e.detail.value ?? "")}
-                    required
-                  />
-                </IonItem>
-
-                <IonItem>
-                  <IonLabel position="stacked">Rego *</IonLabel>
-                  <IonInput
-                    value={rego}
-                    onIonChange={(e) => setRego(e.detail.value ?? "")}
-                    required
-                  />
-                </IonItem>
-              </IonList>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Status</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonList>
-                <IonItem>
-                  <IonLabel position="stacked">Odometer (km)</IonLabel>
-                  <IonInput
-                    inputmode="numeric"
-                    value={odo}
-                    onIonChange={(e) => setOdo(e.detail.value ?? "")}
-                    placeholder="e.g. 125430"
-                  />
-                </IonItem>
-              </IonList>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Photos (Before)</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonGrid>
-                <IonRow className="ion-align-items-center ion-justify-content-between">
-                  <IonCol size="12" sizeMd="6">
-                    <input
-                      id="before-photos"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={addPhotos(setPhotosBefore)}
-                      style={{ display: "none" }}
-                    />
-                    <IonButton
-                      onClick={() => document.getElementById("before-photos")?.click()}
-                    >
-                      <IonIcon slot="start" icon={camera} />
-                      Add Photos
-                    </IonButton>
-                  </IonCol>
-                  <IonCol size="12">
-                    {photosBefore.length === 0 && (
-                      <IonText color="medium">No photos added.</IonText>
-                    )}
-                    <div className="grid" style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", marginTop: 8 }}>
-                      {photosBefore.map((p, idx) => (
-                        <div key={idx} style={{ position: "relative" }}>
-                          <img src={p.url} alt={`before-${idx}`} style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8 }} />
-                          <IonChip
-                            outline
-                            color="danger"
-                            onClick={() => removePhoto(idx, setPhotosBefore)}
-                            style={{ position: "absolute", top: 6, right: 6, cursor: "pointer" }}
-                          >
-                            <IonIcon icon={trash} />
-                          </IonChip>
-                        </div>
-                      ))}
-                    </div>
-                  </IonCol>
-                </IonRow>
-              </IonGrid>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Photos (After)</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonGrid>
-                <IonRow className="ion-align-items-center ion-justify-content-between">
-                  <IonCol size="12" sizeMd="6">
-                    <input
-                      id="after-photos"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={addPhotos(setPhotosAfter)}
-                      style={{ display: "none" }}
-                    />
-                    <IonButton
-                      fill="outline"
-                      onClick={() => document.getElementById("after-photos")?.click()}
-                    >
-                      <IonIcon slot="start" icon={images} />
-                      Add Photos
-                    </IonButton>
-                  </IonCol>
-                  <IonCol size="12">
-                    {photosAfter.length === 0 && (
-                      <IonText color="medium">No photos added.</IonText>
-                    )}
-                    <div className="grid" style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", marginTop: 8 }}>
-                      {photosAfter.map((p, idx) => (
-                        <div key={idx} style={{ position: "relative" }}>
-                          <img src={p.url} alt={`after-${idx}`} style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8 }} />
-                          <IonChip
-                            outline
-                            color="danger"
-                            onClick={() => removePhoto(idx, setPhotosAfter)}
-                            style={{ position: "absolute", top: 6, right: 6, cursor: "pointer" }}
-                          >
-                            <IonIcon icon={trash} />
-                          </IonChip>
-                        </div>
-                      ))}
-                    </div>
-                  </IonCol>
-                </IonRow>
-              </IonGrid>
-            </IonCardContent>
-          </IonCard>
-
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>Notes</IonCardTitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonItem>
-                <IonLabel position="stacked">Installer Notes</IonLabel>
-                <IonTextarea
-                  value={notes}
-                  onIonChange={(e) => setNotes(e.detail.value ?? "")}
-                  rows={4}
-                  placeholder="Mounting location, wiring notes, anything unusual…"
-                />
-              </IonItem>
-            </IonCardContent>
-          </IonCard>
-
-          <IonGrid>
-            <IonRow>
-              <IonCol size="12" sizeMd="6">
-                <IonButton expand="block" color="medium" onClick={handleTestUnit}>
-                  Test Unit
-                </IonButton>
-              </IonCol>
-              <IonCol size="12" sizeMd="6">
-                <IonButton type="submit" expand="block" color="primary">
-                  Create Unit
-                </IonButton>
-              </IonCol>
-            </IonRow>
-          </IonGrid>
-        </form>
-
-        {/* Persistent Home button at the very bottom */}
-        <div className="ion-padding-top">
-          <HomeButton />
+        <div className="ion-padding">
+          <IonButton expand="block" onClick={submit} disabled={!allValid}>Create Unit</IonButton>
+          <IonButton expand="block" color="medium" onClick={() => history.push("/jobs")}>Home</IonButton>
         </div>
       </IonContent>
     </IonPage>
