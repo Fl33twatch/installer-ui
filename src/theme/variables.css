@@ -1,0 +1,75 @@
+/* Ionic Theme Variables
+   - Define brand colors and component tokens once
+   - Works with Ionic components + your own CSS
+*/
+
+/* ========== Light theme (default) ========== */
+:root {
+  /* Brand palette */
+  --ion-color-primary: #2563eb;     /* blue-600 */
+  --ion-color-primary-rgb: 37, 99, 235;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255,255,255;
+  --ion-color-primary-shade: #1f54c9;
+  --ion-color-primary-tint: #4276ee;
+
+  --ion-color-secondary: #0ea5e9;   /* sky-500 */
+  --ion-color-tertiary:  #22c55e;   /* green-500 */
+  --ion-color-success:   #16a34a;
+  --ion-color-warning:   #f59e0b;
+  --ion-color-danger:    #ef4444;
+  --ion-color-medium:    #64748b;   /* slate-500 */
+  --ion-color-light:     #f1f5f9;   /* slate-100 */
+
+  /* Background / surface */
+  --ion-background-color: #ffffff;
+  --ion-text-color: #0f172a; /* slate-900 */
+  --ion-card-background: #ffffff;
+
+  /* Radius + elevation (nice rounded look) */
+  --app-radius: 14px;
+  --ion-border-radius: var(--app-radius);
+
+  /* Spacing scale – optional helpers */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+/* Optional: component-specific tweaks */
+ion-card, .ion-card {
+  border-radius: var(--app-radius);
+}
+
+/* ========== Dark theme ========== */
+/* Use either the media-query auto dark… */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-background-color: #0b1220;  /* deep navy */
+    --ion-text-color: #e5e7eb;
+
+    --ion-card-background: #111827;
+    --ion-color-medium: #94a3b8;
+
+    /* Darker primary for better contrast at night */
+    --ion-color-primary: #3b82f6;
+    --ion-color-primary-rgb: 59,130,246;
+    --ion-color-primary-contrast: #0b1220;
+  }
+}
+
+/* …or class-based dark mode (uncomment if you prefer manual toggling) */
+/*
+:root.dark {
+  --ion-background-color: #0b1220;
+  --ion-text-color: #e5e7eb;
+  --ion-card-background: #111827;
+  --ion-color-medium: #94a3b8;
+  --ion-color-primary: #3b82f6;
+  --ion-color-primary-rgb: 59,130,246;
+  --ion-color-primary-contrast: #0b1220;
+}
+*/

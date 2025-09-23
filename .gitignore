@@ -1,0 +1,16 @@
+﻿# Node / Vite / Ionic
+node_modules/
+dist/
+.build/
+.temp/
+.vscode/
+.DS_Store
+.env*
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# Capacitor/Android/iOS build outputs (optional – keep if you build locally)
+android/
+ios/
