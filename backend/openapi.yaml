@@ -1,0 +1,63 @@
+swagger: '2.0'
+info:
+  title: Installer API
+  version: '1.0.0'
+schemes:
+  - https
+basePath: /
+# Route everything to your Cloud Run service
+x-google-backend:
+  address: https://installer-api-257917479973.australia-southeast1.run.app
+  protocol: h2
+# Allow all callers at the gateway (we'll add API keys later if you want)
+x-google-allow: all
+
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: OK
+
+  /units:
+    post:
+      operationId: createUnit
+      consumes:
+        - application/json
+        - multipart/form-data
+      responses:
+        '200':
+          description: Created
+
+  /diagnostics/run:
+    post:
+      operationId: runDiagnostics
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
+
+  /units/{unitId}/test-log:
+    post:
+      operationId: saveTestLog
+      consumes:
+        - application/json
+      parameters:
+        - in: path
+          name: unitId
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+
+  /notify/admin:
+    post:
+      operationId: notifyAdmin
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: OK
