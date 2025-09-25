@@ -1,47 +1,37 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+// src/config/ConfigProvider.tsx
+import React, { createContext, useContext, useState } from "react";
 
-type Config = {
-  apiBaseUrl: string;
-  organisation: string;
+export type AppConfig = {
+  apiBaseUrl?: string;
+  theme?: "light" | "dark";
+  // add other app-wide settings here
+  [key: string]: any;
 };
 
-type ConfigContextType = {
-  config: Config;
-  setConfig: (c: Partial<Config>) => void;
+type ConfigContextValue = {
+  config: AppConfig;
+  setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
 };
 
-const defaultConfig: Config = {
-  apiBaseUrl: "",
-  organisation: "",
-};
+const ConfigContext = createContext<ConfigContextValue | undefined>(undefined);
 
-const KEY = "installer_config_v1";
+type Props = { children: React.ReactNode };
 
-const ConfigContext = createContext<ConfigContextType>({
-  config: defaultConfig,
-  setConfig: () => {},
-});
-
-export const ConfigProvider: React.FC = ({ children }) => {
-  const [config, setConfigState] = useState<Config>(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? { ...defaultConfig, ...JSON.parse(raw) } : defaultConfig;
-    } catch {
-      return defaultConfig;
-    }
+export const ConfigProvider: React.FC<Props> = ({ children }) => {
+  const [config, setConfig] = useState<AppConfig>({
+    theme: "light",
+    apiBaseUrl: "", // set your default API base here if you like
   });
 
-  const setConfig = (next: Partial<Config>) =>
-    setConfigState((prev) => ({ ...prev, ...next }));
-
-  useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(config));
-  }, [config]);
-
-  const value = useMemo(() => ({ config, setConfig }), [config]);
-
-  return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
+  return (
+    <ConfigContext.Provider value={{ config, setConfig }}>
+      {children}
+    </ConfigContext.Provider>
+  );
 };
 
-export const useConfig = () => useContext(ConfigContext);
+export const useConfig = (): ConfigContextValue => {
+  const ctx = useContext(ConfigContext);
+  if (!ctx) throw new Error("useConfig must be used within ConfigProvider");
+  return ctx;
+};
