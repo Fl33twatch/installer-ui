@@ -22,7 +22,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ----- Health endpoints -----
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 // optional readiness probe
 app.get("/readyz", (req, res) => res.status(200).send("ready"));
 
@@ -148,5 +148,5 @@ app.use((err, req, res, _next) => {
 
 // ----- Start server (Cloud Run requires this shape) -----
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server listening on http://0.0.0.0:${port}`);
+  console.log(`[boot] listening on http://0.0.0.0:${port}`);
 });
