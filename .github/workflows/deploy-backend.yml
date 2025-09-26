@@ -48,18 +48,24 @@ jobs:
         id: sha
         run: echo "SHORT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Build image (classic docker)
+            - name: Build image (classic docker)
         working-directory: backend
         run: |
+          # Normalize IMAGE to strip any accidental newlines/carriage returns from secrets
+          IMAGE_REF="$(printf '%s' "${IMAGE}" | tr -d '\r' | tr -d '\n')"
+          echo "Using IMAGE_REF=${IMAGE_REF}"  # will be partially masked by GitHub
+
           docker build \
-            -t "${IMAGE}:${{ steps.sha.outputs.SHORT }}" \
-            -t "${IMAGE}:latest" \
+            -t "${IMAGE_REF}:${{ steps.sha.outputs.SHORT }}" \
+            -t "${IMAGE_REF}:latest" \
             .
 
       - name: Push image
         run: |
-          docker push "${IMAGE}:${{ steps.sha.outputs.SHORT }}"
-          docker push "${IMAGE}:latest"
+          IMAGE_REF="$(printf '%s' "${IMAGE}" | tr -d '\r' | tr -d '\n')"
+          docker push "${IMAGE_REF}:${{ steps.sha.outputs.SHORT }}"
+          docker push "${IMAGE_REF}:latest"
+
 
       # Force the default Cloud Run endpoint so any inherited override is ignored
       - name: Deploy to Cloud Run
