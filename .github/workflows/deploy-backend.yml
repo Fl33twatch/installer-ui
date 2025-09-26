@@ -83,10 +83,10 @@ jobs:
           echo "Env overrides (if any):"
           env | sort | grep -i CLOUDSDK_API_ENDPOINT || true
 
-      - name: Deploy to Cloud Run
+       - name: Deploy to Cloud Run
         env:
-          # Force-empty to override any inherited secret/var
-          CLOUDSDK_API_ENDPOINT_OVERRIDES_RUN: ""
+          # Force the default Cloud Run endpoint so any inherited override is ignored
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_RUN: "https://run.googleapis.com/"
         run: |
           gcloud run deploy "$SERVICE" \
             --image="${{ steps.img.outputs.REF_SHA }}" \
