@@ -12,8 +12,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.CLOUD_RUN_REGION }}
   SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
-  GAR_LOCATION: ${{ secrets.GAR_LOCATION }}         # e.g. australia-southeast1
-  GAR_REPO: ${{ secrets.GAR_REPO }}                 # e.g. installer-repo
+  GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
+  GAR_REPO: ${{ secrets.GAR_REPO }}
   IMAGE_BASE: ${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/${{ secrets.CLOUD_RUN_SERVICE }}
 
 jobs:
@@ -41,7 +41,6 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker $GAR_LOCATION-docker.pkg.dev --quiet
 
-      # Quick visibility on what the runner sees
       - name: List backend contents
         run: |
           pwd
@@ -53,7 +52,6 @@ jobs:
         id: vars
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # 🔧 Normalize IMAGE (strip newline/CR and collapse accidental //)
       - name: Normalize image ref
         id: img
         env:
@@ -64,15 +62,11 @@ jobs:
           echo "REF_SHA=${CLEAN}:${{ steps.vars.outputs.SHORT_SHA }}" >> $GITHUB_OUTPUT
           echo "REF_LATEST=${CLEAN}:latest" >> $GITHUB_OUTPUT
           echo "::notice title=Image Base::${CLEAN}"
-          # hexdump for debugging hidden chars if any remain
           printf "%s" "$CLEAN" | od -An -t x1
 
       - name: Build image (classic docker)
         run: |
-          docker build \
-            -f backend/Dockerfile \
-            -t "${{ steps.img.outputs.REF_SHA }}" \
-            backend
+          docker build -f backend/Dockerfile -t "${{ steps.img.outputs.REF_SHA }}" backend
           docker tag "${{ steps.img.outputs.REF_SHA }}" "${{ steps.img.outputs.REF_LATEST }}"
 
       - name: Push image
@@ -80,7 +74,19 @@ jobs:
           docker push "${{ steps.img.outputs.REF_SHA }}"
           docker push "${{ steps.img.outputs.REF_LATEST }}"
 
+      # 🔧 Ensure no custom Cloud Run endpoint is set anywhere
+      - name: Clear Cloud Run endpoint override
+        run: |
+          gcloud config unset api_endpoint_overrides/run || true
+          echo "After unset:"
+          gcloud config list --all | sed -n '1,120p'
+          echo "Env overrides (if any):"
+          env | sort | grep -i CLOUDSDK_API_ENDPOINT || true
+
       - name: Deploy to Cloud Run
+        env:
+          # Force-empty to override any inherited secret/var
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_RUN: ""
         run: |
           gcloud run deploy "$SERVICE" \
             --image="${{ steps.img.outputs.REF_SHA }}" \
