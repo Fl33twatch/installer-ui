@@ -48,7 +48,7 @@ jobs:
         id: sha
         run: echo "SHORT=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-            - name: Build image (classic docker)
+      - name: Build image (classic docker)
         working-directory: backend
         run: |
           # Normalize IMAGE to strip any accidental newlines/carriage returns from secrets
