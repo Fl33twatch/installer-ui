@@ -69,12 +69,13 @@ jobs:
 
       # Force the default Cloud Run endpoint so any inherited override is ignored
       - name: Deploy to Cloud Run
-        env:
-          CLOUDSDK_API_ENDPOINT_OVERRIDES_RUN: "https://run.googleapis.com/"
         run: |
+          IMAGE_REF="$(printf '%s' "${IMAGE}" | tr -d '\r\n')"
+          TAG="${{ steps.sha.outputs.SHORT }}"
           gcloud run deploy "${SERVICE}" \
-            --image="${IMAGE}:${{ steps.sha.outputs.SHORT }}" \
+            --image="${IMAGE_REF}:${TAG}" \
             --region="${REGION}" \
             --platform=managed \
             --port=8080 \
+            --timeout=300 \
             --quiet

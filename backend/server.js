@@ -10,7 +10,7 @@ const { notifyAdmin } = require("./mailer");
 const app = express();
 
 // ----- Env -----
-const PORT = parseInt(process.env.PORT, 10) || 8080; // <-- Cloud Run injects PORT
+const port = Number(process.env.PORT) || 8080;
 const HOST = "0.0.0.0";                               // <-- must bind to all interfaces
 const APP_ENV = process.env.APP_ENV || "production";
 const BUCKET = process.env.BUCKET;
@@ -22,9 +22,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ----- Health endpoints -----
-app.get("/health", (req, res) =>
-  res.json({ ok: true, env: APP_ENV, bucket: BUCKET || null })
-);
+app.get('/health', (req, res) => res.json({ ok: true }));
 // optional readiness probe
 app.get("/readyz", (req, res) => res.status(200).send("ready"));
 
@@ -149,6 +147,6 @@ app.use((err, req, res, _next) => {
 });
 
 // ----- Start server (Cloud Run requires this shape) -----
-app.listen(PORT, HOST, () => {
-  console.log(`installer-api listening on http://${HOST}:${PORT} (env=${APP_ENV}, bucket=${BUCKET || "none"})`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server listening on http://0.0.0.0:${port}`);
 });
