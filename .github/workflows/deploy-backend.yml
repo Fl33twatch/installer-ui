@@ -2,7 +2,7 @@ name: Build & Deploy Backend to Cloud Run
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-backend.yml"
@@ -21,13 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # REQUIRED for OIDC
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Keyless auth via Workload Identity Federation
       - name: Auth to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
@@ -42,22 +41,44 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker $GAR_LOCATION-docker.pkg.dev --quiet
 
-      - name: Build image
-        working-directory: backend
+      # --- Debug helpers (safe to keep) ---
+      - name: Show backend dir contents
         run: |
-          docker build -t $IMAGE:$(git rev-parse --short HEAD) .
-          docker tag $IMAGE:$(git rev-parse --short HEAD) $IMAGE:latest
+          echo "PWD=$(pwd)"
+          ls -la
+          echo "--- backend ---"
+          ls -la backend
+
+      - name: Show Docker version + buildx
+        run: |
+          docker version
+          docker buildx version || true
+      # ------------------------------------
+
+            - name: Build image (force classic docker)
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          # Switch Docker to classic builder instead of buildx
+          docker buildx use default || true
+          docker build \
+            -f backend/Dockerfile \
+            -t "$IMAGE:$SHORT_SHA" \
+            backend
+          docker tag "$IMAGE:$SHORT_SHA" "$IMAGE:latest"
+
 
       - name: Push image
         run: |
-          docker push $IMAGE:$(git rev-parse --short HEAD)
-          docker push $IMAGE:latest
+          SHORT_SHA="${GITHUB_SHA::7}"
+          docker push "$IMAGE:$SHORT_SHA"
+          docker push "$IMAGE:latest"
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy $SERVICE \
-            --image=$IMAGE:$(git rev-parse --short HEAD) \
-            --region=$REGION \
+          SHORT_SHA="${GITHUB_SHA::7}"
+          gcloud run deploy "$SERVICE" \
+            --image="$IMAGE:$SHORT_SHA" \
+            --region="$REGION" \
             --platform=managed \
             --port=8080 \
             --quiet
