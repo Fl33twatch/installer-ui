@@ -2,7 +2,7 @@ name: Build & Deploy Backend to Cloud Run
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-backend.yml"
@@ -12,8 +12,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.CLOUD_RUN_REGION }}
   SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
-  GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
-  GAR_REPO: ${{ secrets.GAR_REPO }}
+  GAR_LOCATION: ${{ secrets.GAR_LOCATION }}         # e.g. australia-southeast1
+  GAR_REPO: ${{ secrets.GAR_REPO }}                 # e.g. installer-repo
   IMAGE: ${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPO }}/${{ secrets.CLOUD_RUN_SERVICE }}
 
 jobs:
@@ -41,43 +41,37 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker $GAR_LOCATION-docker.pkg.dev --quiet
 
-      # --- Debug helpers (safe to keep) ---
-      - name: Show backend dir contents
+      # Helpful debug so we can see the files on the runner
+      - name: List backend contents
         run: |
-          echo "PWD=$(pwd)"
+          pwd
           ls -la
-          echo "--- backend ---"
+          echo "----- backend/ -----"
           ls -la backend
+          echo "----- Dockerfile -----"
+          sed -n '1,120p' backend/Dockerfile
 
-      - name: Show Docker version + buildx
-        run: |
-          docker version
-          docker buildx version || true
-      # ------------------------------------
+      - name: Compute short SHA
+        id: vars
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-            - name: Build image (force classic docker)
+      - name: Build image (classic docker)
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          # Switch Docker to classic builder instead of buildx
-          docker buildx use default || true
           docker build \
             -f backend/Dockerfile \
-            -t "$IMAGE:$SHORT_SHA" \
+            -t "${IMAGE}:${{ steps.vars.outputs.SHORT_SHA }}" \
             backend
-          docker tag "$IMAGE:$SHORT_SHA" "$IMAGE:latest"
-
+          docker tag "${IMAGE}:${{ steps.vars.outputs.SHORT_SHA }}" "${IMAGE}:latest"
 
       - name: Push image
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          docker push "$IMAGE:$SHORT_SHA"
-          docker push "$IMAGE:latest"
+          docker push "${IMAGE}:${{ steps.vars.outputs.SHORT_SHA }}"
+          docker push "${IMAGE}:latest"
 
       - name: Deploy to Cloud Run
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
           gcloud run deploy "$SERVICE" \
-            --image="$IMAGE:$SHORT_SHA" \
+            --image="${IMAGE}:${{ steps.vars.outputs.SHORT_SHA }}" \
             --region="$REGION" \
             --platform=managed \
             --port=8080 \
