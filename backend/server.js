@@ -10,7 +10,7 @@ const { notifyAdmin } = require("./mailer");
 const app = express();
 
 // ----- Env -----
-const port = Number(process.env.PORT) || 8080;
+const PORT = process.env.PORT || 8080; // Cloud Run provides PORT
 const HOST = "0.0.0.0";                               // <-- must bind to all interfaces
 const APP_ENV = process.env.APP_ENV || "production";
 const BUCKET = process.env.BUCKET;
@@ -147,6 +147,6 @@ app.use((err, req, res, _next) => {
 });
 
 // ----- Start server (Cloud Run requires this shape) -----
-app.listen(port, '0.0.0.0', () => {
-  console.log(`[boot] listening on http://0.0.0.0:${port}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`API listening on http://0.0.0.0:${PORT}`);
 });
