@@ -33,14 +33,13 @@ async function compressIfNeeded(input, contentType) {
   return { buffer: out, contentType: "image/jpeg" };
 }
 
-async function uploadBuffer(buffer, key, contentType) {
+export async function uploadBuffer(
+  buffer,
+  key,
+  contentType
+) {
   const file = bucket.file(key);
   await file.save(buffer, { contentType, resumable: false, public: false });
-  const [url] = await file.getSignedUrl({
-    action: "read",
-    expires: Date.now() + 15 * 60 * 1000,
-  });
-  return { gcsPath: `gs://${bucketName}/${key}`, url };
-}
 
-module.exports = { compressIfNeeded, uploadBuffer };
+  return { gcsPath: `gs://${bucketName}/${key}`, url: null };
+}
