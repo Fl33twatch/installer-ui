@@ -9,30 +9,40 @@ const { notifyAdmin } = require("./mailer");
 
 const app = express();
 
-// ----- Env -----
-const PORT = process.env.PORT || 8080; // Cloud Run provides PORT
-const HOST = "0.0.0.0";                               // <-- must bind to all interfaces
+/* ---------- Env ---------- */
+const PORT = process.env.PORT || 8080;      // Cloud Run injects PORT
+const HOST = "0.0.0.0";
 const APP_ENV = process.env.APP_ENV || "production";
 const BUCKET = process.env.BUCKET;
 
-// ----- Middleware -----
-app.set("trust proxy", true); // Cloud Run sits behind a proxy
-app.use(cors({ origin: "*" })); // TODO: restrict origins in prod
+/* ---------- Core / Proxy ---------- */
+app.set("trust proxy", true);
+
+/* ---------- CORS (global, includes OPTIONS) ---------- */
+app.use(
+  cors({
+    origin: "*", // for local dev + Cloud Run frontends; tighten for prod if needed
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.options("*", cors(), (req, res) => res.sendStatus(204));
+
+/* ---------- Parsers ---------- */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ----- Health endpoints -----
-app.get('/health', (_req, res) => res.json({ ok: true }));
-// optional readiness probe
-app.get("/readyz", (req, res) => res.status(200).send("ready"));
+/* ---------- Health ---------- */
+app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/readyz", (_req, res) => res.status(200).send("ready"));
 
-// ----- Multer: in-memory storage -----
+/* ---------- Uploads (multer in-memory) ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB/file cap before compression
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB/file before compression
 });
 
-// ----- Routes -----
+/* ---------- Routes ---------- */
 
 // Create unit + upload 3 photos
 app.post(
@@ -63,20 +73,21 @@ app.post(
 
       const unitId = `unit_${Date.now()}`;
 
-      // Compress & upload photos
+      // Compress
       const [c1, c2, c3] = await Promise.all([
         compressIfNeeded(imeiPhoto.buffer, imeiPhoto.mimetype),
         compressIfNeeded(odoPhoto.buffer, odoPhoto.mimetype),
         compressIfNeeded(regoPhoto.buffer, regoPhoto.mimetype),
       ]);
 
+      // Upload
       const [u1, u2, u3] = await Promise.all([
         uploadBuffer(c1.buffer, `units/${unitId}/photos/imei.jpg`, c1.contentType),
         uploadBuffer(c2.buffer, `units/${unitId}/photos/odo.jpg`, c2.contentType),
         uploadBuffer(c3.buffer, `units/${unitId}/photos/rego.jpg`, c3.contentType),
       ]);
 
-      // TODO: persist to DB (skipped). Echo back the unit object for now.
+      // (DB persistence skipped) Echo payload
       const unit = {
         unitId,
         imei,
@@ -97,13 +108,13 @@ app.post(
   }
 );
 
-// Run diagnostics after creation
+// Run diagnostics
 app.post("/diagnostics/run", async (req, res) => {
   try {
     const { imei, phone } = req.body || {};
-    if (!imei || !phone)
+    if (!imei || !phone) {
       return res.status(400).json({ ok: false, error: "imei and phone required" });
-
+    }
     const result = await runDiagnostics(imei, phone);
     res.json(result);
   } catch (err) {
@@ -112,15 +123,15 @@ app.post("/diagnostics/run", async (req, res) => {
   }
 });
 
-// Save a test log (and notify admin if failed)
+// Save test log & optionally notify admin
 app.post("/units/:unitId/test-log", async (req, res) => {
   try {
     const { unitId } = req.params;
     const { passed, reasons, notes } = req.body || {};
-    if (typeof passed !== "boolean")
+    if (typeof passed !== "boolean") {
       return res.status(400).json({ ok: false, error: "passed boolean required" });
+    }
 
-    // TODO: persist log (skipped)
     if (!passed) {
       const msg = `Unit ${unitId} failed diagnostics.\nReasons: ${
         (reasons || []).join(", ") || "N/A"
@@ -135,7 +146,7 @@ app.post("/units/:unitId/test-log", async (req, res) => {
   }
 });
 
-// ----- 404 + error handlers -----
+/* ---------- 404 & Error handler ---------- */
 app.use((req, res) => {
   res.status(404).json({ ok: false, error: "Not Found", path: req.originalUrl });
 });
@@ -146,7 +157,7 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ ok: false, error: err.message || "Server error" });
 });
 
-// ----- Start server (Cloud Run requires this shape) -----
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`API listening on http://0.0.0.0:${PORT}`);
+/* ---------- Start ---------- */
+app.listen(PORT, HOST, () => {
+  console.log(`API listening on http://${HOST}:${PORT} (env=${APP_ENV}, bucket=${BUCKET || "unset"})`);
 });
