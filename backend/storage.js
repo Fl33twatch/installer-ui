@@ -1,3 +1,4 @@
+// backend/storage.js
 const { Storage } = require("@google-cloud/storage");
 const sharp = require("sharp");
 
@@ -16,7 +17,7 @@ async function compressIfNeeded(input, contentType) {
   if (!canProcess) return { buffer: input, contentType };
 
   const out = await sharp(input)
-    .rotate() // auto-orient
+    .rotate()
     .resize({ width: maxPixels, height: maxPixels, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: 72, mozjpeg: true })
     .toBuffer();
@@ -33,13 +34,14 @@ async function compressIfNeeded(input, contentType) {
   return { buffer: out, contentType: "image/jpeg" };
 }
 
-export async function uploadBuffer(
-  buffer,
-  key,
-  contentType
-) {
+async function uploadBuffer(buffer, key, contentType) {
   const file = bucket.file(key);
   await file.save(buffer, { contentType, resumable: false, public: false });
-
+  // No signed URL -> avoids iam.serviceAccounts.signBlob
   return { gcsPath: `gs://${bucketName}/${key}`, url: null };
 }
+
+module.exports = {
+  compressIfNeeded,
+  uploadBuffer,
+};
