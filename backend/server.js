@@ -9,6 +9,27 @@ const { notifyAdmin } = require("./mailer");
 
 const app = express();
 
+// ---- CORS (add this at the very top, after `const app = express()` ) ----
+app.use((req, res, next) => {
+  // allow your local dev UI and any other origin (relax to debug)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // allowed verbs the browser may preflight for
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+
+  // headers your UI will send (content-type + whatever else you use)
+  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-api-key');
+
+  // handle the preflight here and stop
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  next();
+});
+// ---- end CORS block ----
+
+
 /* ---------- Env ---------- */
 const PORT = process.env.PORT || 8080;      // Cloud Run injects PORT
 const HOST = "0.0.0.0";
@@ -23,7 +44,7 @@ app.use(
   cors({
     origin: "*", // for local dev + Cloud Run frontends; tighten for prod if needed
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["content-type", "Authorization"],
   })
 );
 app.options("*", cors(), (req, res) => res.sendStatus(204));

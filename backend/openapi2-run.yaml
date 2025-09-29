@@ -1,0 +1,210 @@
+swagger: "2.0"
+info:
+  title: installer-api
+  version: "1.0"
+
+schemes:
+  - https
+basePath: "/"
+
+consumes:
+  - application/json
+  - multipart/form-data
+produces:
+  - application/json
+
+x-google-endpoints:
+  - name: installer-gw-3ahhep7p.ts.gateway.dev
+    allowCors: true
+
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: key
+    in: query
+
+security:
+  - api_key: []
+
+paths:
+  /units:
+    post:
+      operationId: unitsCreate
+      description: Create unit with 3 photos.
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: imei
+          in: formData
+          type: string
+          required: true
+        - name: phone
+          in: formData
+          type: string
+          required: true
+        - name: rego
+          in: formData
+          type: string
+          required: true
+        - name: odo
+          in: formData
+          type: string
+          required: true
+        - name: notes
+          in: formData
+          type: string
+          required: false
+        - name: photo_imei
+          in: formData
+          type: string
+          format: binary
+          required: true
+        - name: photo_odo
+          in: formData
+          type: string
+          format: binary
+          required: true
+        - name: photo_rego
+          in: formData
+          type: string
+          format: binary
+          required: true
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/units
+
+    options:
+      operationId: unitsCors
+      security: []
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/units
+      responses:
+        "204":
+          description: CORS preflight
+          headers:
+            Access-Control-Allow-Origin:  { type: string, default: "*" }
+            Access-Control-Allow-Methods: { type: string, default: "POST,OPTIONS" }
+            Access-Control-Allow-Headers: { type: string, default: "content-type" }
+            Access-Control-Max-Age:       { type: string, default: "3600" }
+
+  /units/{unitId}/test-log:
+    parameters:
+      - name: unitId
+        in: path
+        type: string
+        required: true
+
+    post:
+      operationId: unitsTestLog
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              passed:  { type: boolean }
+              reasons: { type: array, items: { type: string } }
+              notes:   { type: string }
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/units/{unitId}/test-log
+
+    options:
+      operationId: unitsTestLogCors
+      security: []
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/units/{unitId}/test-log
+      responses:
+        "204":
+          description: CORS preflight
+          headers:
+            Access-Control-Allow-Origin:  { type: string, default: "*" }
+            Access-Control-Allow-Methods: { type: string, default: "POST,OPTIONS" }
+            Access-Control-Allow-Headers: { type: string, default: "content-type" }
+            Access-Control-Max-Age:       { type: string, default: "3600" }
+
+  /diagnostics/run:
+    post:
+      operationId: diagnosticsRun
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [imei, phone]
+            properties:
+              imei:  { type: string }
+              phone: { type: string }
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/diagnostics/run
+
+    options:
+      operationId: diagnosticsCors
+      security: []
+      responses:
+        "204":
+          description: CORS preflight
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+              default: "*"
+            Access-Control-Allow-Methods:
+              type: string
+              default: "POST,OPTIONS"
+            Access-Control-Allow-Headers:
+              type: string
+              default: "content-type"
+            Access-Control-Max-Age:
+              type: string
+              default: "3600"
+
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/health
+
+    options:
+      operationId: healthCors
+      security: []
+      responses:
+        "204":
+          description: CORS preflight
+          headers:
+            Access-Control-Allow-Origin:  { type: string, default: "*" }
+            Access-Control-Allow-Methods: { type: string, default: "GET,OPTIONS" }
+            Access-Control-Allow-Headers: { type: string, default: "content-type" }
+            Access-Control-Max-Age:       { type: string, default: "3600" }
+
+  /readyz:
+    get:
+      operationId: readyz
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: https://installer-api-257917479973.australia-southeast1.run.app/readyz
+
+    options:
+      operationId: readyzCors
+      security: []
+      responses:
+        "204":
+          description: CORS preflight
+          headers:
+            Access-Control-Allow-Origin:  { type: string, default: "*" }
+            Access-Control-Allow-Methods: { type: string, default: "GET,OPTIONS" }
+            Access-Control-Allow-Headers: { type: string, default: "content-type" }
+            Access-Control-Max-Age:       { type: string, default: "3600" }
